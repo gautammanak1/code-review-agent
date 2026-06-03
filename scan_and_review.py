@@ -124,14 +124,41 @@ async def _already_reviewed(client: httpx.AsyncClient, repo: str, pr: int, sha: 
     return False
 
 
-async def _post_marker(client: httpx.AsyncClient, repo: str, pr: int, sha: str) -> None:
+async def _mark_reviewed(
+    client: httpx.AsyncClient,
+    repo: str,
+    pr: int,
+    sha: str,
+    actor: str,
+) -> None:
+    """Append the hidden dedup marker to our latest summary comment.
+
+    Falling back to a marker-only comment is intentionally last resort; blank
+    marker comments create noise on PRs.
+    """
+    marker = _marker(sha)
     try:
+        resp = await client.get(
+            f"{GITHUB_API}/repos/{repo}/issues/{pr}/comments",
+            params={"per_page": 100},
+        )
+        if resp.status_code < 400:
+            comments = resp.json() or []
+            for comment in reversed(comments):
+                body = comment.get("body") or ""
+                author = (comment.get("user") or {}).get("login") or ""
+                if author == actor and marker not in body and "code-review-agent: reviewed" not in body:
+                    await client.patch(
+                        f"{GITHUB_API}/repos/{repo}/issues/comments/{comment['id']}",
+                        json={"body": f"{body.rstrip()}\n\n{marker}"},
+                    )
+                    return
         await client.post(
             f"{GITHUB_API}/repos/{repo}/issues/{pr}/comments",
-            json={"body": _marker(sha)},
+            json={"body": marker},
         )
     except Exception as exc:
-        log.warning("could not post marker on %s#%d: %s", repo, pr, exc)
+        log.warning("could not mark %s#%d reviewed: %s", repo, pr, exc)
 
 
 async def _review(repo: str, pr: int, token: str, dry_run: bool) -> dict[str, Any] | None:
@@ -228,7 +255,7 @@ async def main() -> int:
             if final and final.get("type") == "response":
                 log.info("  done: %s", (final.get("text") or "")[:200].replace("\n", " "))
                 if not dry_run:
-                    await _post_marker(client, repo, number, head_sha)
+                    await _mark_reviewed(client, repo, number, head_sha, user)
                 reviewed += 1
             else:
                 log.error("  review failed: %s", final.get("text") if final else "no response")
