@@ -137,6 +137,13 @@ It runs every ~15 minutes, uses the GitHub Search API to find open PRs where
 you are an assignee or requested reviewer, reviews any whose latest commit it
 hasn't reviewed yet (dedup via a hidden marker comment), and posts comments.
 
+By default it only reviews PRs **opened at/after** the `REVIEW_SINCE`
+timestamp in the workflow — so your existing open PRs are left alone and only
+**new** PRs get auto-reviewed. Bump `REVIEW_SINCE` to reset what counts as new,
+or remove it to review every unreviewed assigned PR. Other knobs: `REVIEW_BOTS`
+(include dependabot/renovate), `OWNER_ONLY` (skip org/3rd-party repos),
+`MAX_PRS`, `DRY_RUN`.
+
 Setup (in **this** repo's **Settings → Secrets and variables → Actions**):
 
 | Secret | Why |

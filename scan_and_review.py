@@ -28,6 +28,7 @@ import logging
 import os
 import sys
 import uuid
+from datetime import datetime
 from typing import Any
 
 import dotenv
@@ -48,6 +49,15 @@ TIMEOUT = httpx.Timeout(connect=10.0, read=30.0, write=15.0, pool=10.0)
 
 def _marker(sha: str) -> str:
     return f"<!-- code-review-agent: reviewed {sha[:12]} -->"
+
+
+def _parse_ts(value: str | None) -> datetime | None:
+    if not value:
+        return None
+    try:
+        return datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except Exception:
+        return None
 
 
 def _headers(token: str) -> dict[str, str]:
@@ -164,6 +174,7 @@ async def main() -> int:
     max_prs = max(1, int(os.getenv("MAX_PRS") or "5"))
     review_bots = (os.getenv("REVIEW_BOTS") or "false").lower() == "true"
     owner_only = (os.getenv("OWNER_ONLY") or "false").lower() == "true"
+    review_since = _parse_ts(os.getenv("REVIEW_SINCE"))
 
     from ai import setup_ai_instance
 
@@ -193,6 +204,11 @@ async def main() -> int:
             number = pr.get("number")
             head_sha = (pr.get("head") or {}).get("sha") or ""
             if not (repo and number and head_sha):
+                continue
+
+            created = _parse_ts(pr.get("created_at"))
+            if review_since and created and created < review_since:
+                log.info("skip %s#%d (opened before REVIEW_SINCE; only new PRs)", repo, number)
                 continue
 
             author = (pr.get("user") or {}).get("login") or ""
