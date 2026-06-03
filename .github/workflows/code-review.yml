@@ -1,0 +1,67 @@
+name: AI Code Review (install in target repo)
+
+# Drop this file into ANY repo you want auto-reviewed at:
+#     .github/workflows/code-review.yml
+#
+# Behavior (CodeRabbit-style default mode):
+#   - Auto-reviews EVERY pull request the moment it is opened, reopened, or
+#     gets new commits pushed (synchronize). No need to add the bot as a
+#     reviewer.
+#   - Posts review comments. Never merges.
+#
+# Required setup in the target repo:
+#   1. Secret: ASI_ONE_API_KEY = your ASI:One API key
+#   2. (No need to add GITHUB_TOKEN — Actions injects it.)
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+# Cancel an in-flight review for a PR when a newer commit lands on it.
+concurrency:
+  group: code-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout the target repo (read-only)
+        uses: actions/checkout@v4
+        with:
+          path: target-repo
+          fetch-depth: 0
+
+      - name: Checkout the Code Review Agent
+        uses: actions/checkout@v4
+        with:
+          # The GitHub path of THIS agent's repo (change if you fork/rename).
+          repository: gautammanak1/code-review-agent
+          path: agent
+          ref: main
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+
+      - name: Install agent deps
+        working-directory: agent
+        run: uv sync
+
+      - name: Run review
+        working-directory: agent
+        env:
+          ASI_ONE_API_KEY: ${{ secrets.ASI_ONE_API_KEY }}
+          GITHUB_TOKEN:    ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          uv run python agent.py review "${{ github.repository }}" --pr ${{ github.event.pull_request.number }}

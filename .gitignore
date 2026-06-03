@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+env/
+.python-version
+
+# Env / secrets
+.env
+.env.local
+*.pem
+*.key
+
+# Agent runtime artifacts (generated at run time, never committed)
+review_history.json
+watcher_state.json
+*.log
+
+# IDE
+.idea/
+.vscode/
+*.swp
+.DS_Store
+
+# Test
+.pytest_cache/
+.coverage
+htmlcov/
