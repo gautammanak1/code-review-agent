@@ -124,6 +124,26 @@ async def _already_reviewed(client: httpx.AsyncClient, repo: str, pr: int, sha: 
     return False
 
 
+async def _head_commit_time(
+    client: httpx.AsyncClient,
+    repo: str,
+    sha: str,
+) -> datetime | None:
+    try:
+        resp = await client.get(f"{GITHUB_API}/repos/{repo}/commits/{sha}")
+        if resp.status_code >= 400:
+            log.warning("commit lookup failed for %s@%s: %s", repo, sha[:8], resp.text[:200])
+            return None
+        data = resp.json()
+        commit = data.get("commit") or {}
+        committer = commit.get("committer") or {}
+        author = commit.get("author") or {}
+        return _parse_ts(committer.get("date") or author.get("date"))
+    except Exception as exc:
+        log.warning("commit lookup failed for %s@%s: %s", repo, sha[:8], exc)
+        return None
+
+
 async def _mark_reviewed(
     client: httpx.AsyncClient,
     repo: str,
@@ -233,12 +253,13 @@ async def main() -> int:
             if not (repo and number and head_sha):
                 continue
 
-            updated = _parse_ts(pr.get("updated_at"))
-            if review_since and updated and updated < review_since:
+            head_time = await _head_commit_time(client, repo, head_sha) if review_since else None
+            if review_since and head_time and head_time < review_since:
                 log.info(
-                    "skip %s#%d (not updated since REVIEW_SINCE; only new/changed PRs)",
+                    "skip %s#%d @%s (head commit before REVIEW_SINCE; only new commits)",
                     repo,
                     number,
+                    head_sha[:8],
                 )
                 continue
 
