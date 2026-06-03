@@ -2,11 +2,17 @@ name: Self-Review (this repo)
 
 # This workflow lives in THIS repo (the agent itself) so the agent reviews
 # its own PRs as a smoke test. Same triggering rule as code-review.yml:
-# every PR is reviewed automatically on open / reopen / new commits.
+# every PR is reviewed on open / reopen / new commits / assign / reviewer
+# request, plus manual workflow_dispatch.
 
 on:
   pull_request:
-    types: [opened, reopened, synchronize]
+    types: [opened, reopened, synchronize, assigned, review_requested]
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: "PR number to review"
+        required: true
 
 permissions:
   contents: read
@@ -14,7 +20,7 @@ permissions:
   issues: write
 
 concurrency:
-  group: self-review-${{ github.event.pull_request.number }}
+  group: self-review-${{ github.event.pull_request.number || github.event.inputs.pr }}
   cancel-in-progress: true
 
 jobs:
@@ -39,4 +45,4 @@ jobs:
           ASI_ONE_API_KEY: ${{ secrets.ASI_ONE_API_KEY }}
           GITHUB_TOKEN:    ${{ secrets.GITHUB_TOKEN }}
         run: |
-          uv run python agent.py review "${{ github.repository }}" --pr ${{ github.event.pull_request.number }}
+          uv run python agent.py review "${{ github.repository }}" --pr ${{ github.event.pull_request.number || github.event.inputs.pr }}

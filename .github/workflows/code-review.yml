@@ -4,9 +4,11 @@ name: AI Code Review (install in target repo)
 #     .github/workflows/code-review.yml
 #
 # Behavior (CodeRabbit-style default mode):
-#   - Auto-reviews EVERY pull request the moment it is opened, reopened, or
-#     gets new commits pushed (synchronize). No need to add the bot as a
-#     reviewer.
+#   - Auto-reviews EVERY pull request on open / reopen / new commits
+#     (synchronize), AND when the PR is assigned to someone or a reviewer is
+#     requested. No need to add the bot as a reviewer.
+#   - Can also be run manually from the Actions tab (workflow_dispatch) by
+#     entering a PR number.
 #   - Posts review comments. Never merges.
 #
 # Required setup in the target repo:
@@ -15,7 +17,12 @@ name: AI Code Review (install in target repo)
 
 on:
   pull_request:
-    types: [opened, reopened, synchronize]
+    types: [opened, reopened, synchronize, assigned, review_requested]
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: "PR number to review"
+        required: true
 
 permissions:
   contents: read
@@ -24,7 +31,7 @@ permissions:
 
 # Cancel an in-flight review for a PR when a newer commit lands on it.
 concurrency:
-  group: code-review-${{ github.event.pull_request.number }}
+  group: code-review-${{ github.event.pull_request.number || github.event.inputs.pr }}
   cancel-in-progress: true
 
 jobs:
@@ -64,4 +71,4 @@ jobs:
           ASI_ONE_API_KEY: ${{ secrets.ASI_ONE_API_KEY }}
           GITHUB_TOKEN:    ${{ secrets.GITHUB_TOKEN }}
         run: |
-          uv run python agent.py review "${{ github.repository }}" --pr ${{ github.event.pull_request.number }}
+          uv run python agent.py review "${{ github.repository }}" --pr ${{ github.event.pull_request.number || github.event.inputs.pr }}
