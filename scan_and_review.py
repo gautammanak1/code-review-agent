@@ -233,9 +233,13 @@ async def main() -> int:
             if not (repo and number and head_sha):
                 continue
 
-            created = _parse_ts(pr.get("created_at"))
-            if review_since and created and created < review_since:
-                log.info("skip %s#%d (opened before REVIEW_SINCE; only new PRs)", repo, number)
+            updated = _parse_ts(pr.get("updated_at"))
+            if review_since and updated and updated < review_since:
+                log.info(
+                    "skip %s#%d (not updated since REVIEW_SINCE; only new/changed PRs)",
+                    repo,
+                    number,
+                )
                 continue
 
             author = (pr.get("user") or {}).get("login") or ""

@@ -13,7 +13,7 @@ name: Auto-review assigned PRs (cron)
 
 on:
   schedule:
-    - cron: "*/15 * * * *"   # every 15 minutes (GitHub may delay scheduled runs)
+    - cron: "*/5 * * * *"    # every 5 minutes (GitHub may still delay scheduled runs)
   workflow_dispatch:
 
 permissions:
@@ -49,9 +49,8 @@ jobs:
           REVIEW_BOTS:     "false"
           # Set "true" to only review PRs in repos you own (skip org/3rd-party).
           OWNER_ONLY:      "false"
-          # Only review PRs OPENED at/after this time — so existing open PRs are
-          # left alone and only NEW PRs get auto-reviewed. Bump this if you ever
-          # want to "reset" what counts as new.
+          # Only review PRs updated at/after this time — so old PRs stay quiet
+          # unless a new commit/comment updates them after this cutoff.
           REVIEW_SINCE:    "2026-06-03T22:11:48Z"
           # Set "true" to preview without posting any comments.
           DRY_RUN:         "false"
