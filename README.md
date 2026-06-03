@@ -125,6 +125,32 @@ so rapid pushes don't pile up duplicate runs.
 > works for branches pushed to the same repo; for fork contributions, run the
 > review manually with `python agent.py review owner/repo --pr N`.
 
+## Auto-review your assigned PRs across ALL repos (scheduled scan)
+
+The per-repo flow above only covers repos where you installed the workflow.
+To auto-review **any** PR that gets assigned to you (or requests you as a
+reviewer) in **any** repo — without touching each repo — use the scheduled
+scan that lives in this repo:
+[`.github/workflows/assigned-prs.yml`](.github/workflows/assigned-prs.yml).
+
+It runs every ~15 minutes, uses the GitHub Search API to find open PRs where
+you are an assignee or requested reviewer, reviews any whose latest commit it
+hasn't reviewed yet (dedup via a hidden marker comment), and posts comments.
+
+Setup (in **this** repo's **Settings → Secrets and variables → Actions**):
+
+| Secret | Why |
+| --- | --- |
+| `ASI_ONE_API_KEY` | the LLM |
+| `GH_PAT` | a **classic PAT with `repo` scope** — the built-in `GITHUB_TOKEN` can only see this repo, so cross-repo search + commenting needs your own token |
+
+You can also trigger it on demand from the **Actions** tab → *Auto-review
+assigned PRs (cron)* → **Run workflow**. Tune cadence via the `cron:` line and
+`MAX_PRS` per run.
+
+> Scheduled runs are polling, not a true webhook, so a freshly assigned PR may
+> wait up to one interval before it's picked up.
+
 ## Configuration
 
 ### Environment variables

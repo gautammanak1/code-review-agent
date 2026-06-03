@@ -1,0 +1,48 @@
+name: Auto-review assigned PRs (cron)
+
+# Runs inside THIS repo on a schedule and reviews every open PR — in ANY repo
+# the token can see — where you are an assignee or a requested reviewer.
+# This is how the agent covers "any repo" without installing a workflow into
+# each target repo (the per-repo code-review.yml is the alternative).
+#
+# Required setup (in THIS repo's Settings → Secrets and variables → Actions):
+#   - Secret: ASI_ONE_API_KEY = your ASI:One API key
+#   - Secret: GH_PAT          = a classic PAT with `repo` scope (so it can read
+#                               and comment on PRs across your other repos —
+#                               the built-in GITHUB_TOKEN can't reach them).
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"   # every 15 minutes (GitHub may delay scheduled runs)
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: assigned-prs-scan
+  cancel-in-progress: false
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - uses: astral-sh/setup-uv@v3
+
+      - run: uv sync
+
+      - name: Scan and review assigned PRs
+        env:
+          ASI_ONE_API_KEY: ${{ secrets.ASI_ONE_API_KEY }}
+          GH_PAT:          ${{ secrets.GH_PAT }}
+          # Leave WATCH_USERNAME unset to use the PAT's own login, or pin it:
+          WATCH_USERNAME:  gautammanak1
+          MAX_PRS:         "5"
+        run: uv run python scan_and_review.py
