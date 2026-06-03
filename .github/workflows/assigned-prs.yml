@@ -45,4 +45,10 @@ jobs:
           # Leave WATCH_USERNAME unset to use the PAT's own login, or pin it:
           WATCH_USERNAME:  gautammanak1
           MAX_PRS:         "5"
+          # Skip dependabot/renovate (bot-authored) PRs. Set "true" to include.
+          REVIEW_BOTS:     "false"
+          # Set "true" to only review PRs in repos you own (skip org/3rd-party).
+          OWNER_ONLY:      "false"
+          # Set "true" to preview without posting any comments.
+          DRY_RUN:         "false"
         run: uv run python scan_and_review.py

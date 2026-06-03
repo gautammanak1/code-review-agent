@@ -162,6 +162,8 @@ async def main() -> int:
 
     dry_run = (os.getenv("DRY_RUN") or "false").lower() == "true"
     max_prs = max(1, int(os.getenv("MAX_PRS") or "5"))
+    review_bots = (os.getenv("REVIEW_BOTS") or "false").lower() == "true"
+    owner_only = (os.getenv("OWNER_ONLY") or "false").lower() == "true"
 
     from ai import setup_ai_instance
 
@@ -191,6 +193,14 @@ async def main() -> int:
             number = pr.get("number")
             head_sha = (pr.get("head") or {}).get("sha") or ""
             if not (repo and number and head_sha):
+                continue
+
+            author = (pr.get("user") or {}).get("login") or ""
+            if author.endswith("[bot]") and not review_bots:
+                log.info("skip %s#%d (bot author %s; set REVIEW_BOTS=true to include)", repo, number, author)
+                continue
+            if owner_only and repo.split("/", 1)[0].lower() != user.lower():
+                log.info("skip %s#%d (OWNER_ONLY=true and not owned by %s)", repo, number, user)
                 continue
 
             if await _already_reviewed(client, repo, number, head_sha):
